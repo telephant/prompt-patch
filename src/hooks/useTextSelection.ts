@@ -139,6 +139,7 @@ export function useTextSelection() {
       position,
       status: 'pending',
       createdAt: new Date(),
+      patchPrompt: '',
     }
 
     setPatches(prev => [...prev, patch])

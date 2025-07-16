@@ -123,13 +123,13 @@ export function useLangChain(options?: UseLangChainOptions) {
     setError(null)
     
     try {
-      const result = await promptOptimizer.optimizePrompt(originalPrompt, finalDocument, provider)
+      const result = await promptOptimizer.optimizePrompt(originalPrompt, [finalDocument], provider)
       return result
     } catch (err) {
       console.error('Prompt optimization error:', err)
       const llmError = err instanceof LLMError ? err : new LLMError(
         `Failed to optimize prompt: ${err instanceof Error ? err.message : 'Unknown error'}`, 
-        'OPTIMIZATION_FAILED'
+        'UNKNOWN'
       )
       setError(llmError)
       return null

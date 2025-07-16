@@ -17,6 +17,7 @@ export interface RichTextEditorRef {
   setContent: (content: string) => Promise<void>
   focus: () => void
   getSelection: () => Selection | null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getEditor: () => any | null
 }
 

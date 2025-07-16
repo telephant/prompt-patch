@@ -37,7 +37,7 @@ export async function optimizePrompt(
   
   try {
     if (!originalPrompt.trim()) {
-      throw new LLMError('Original prompt is required', 'INVALID_INPUT')
+      throw new LLMError('Original prompt is required', 'INVALID_REQUEST')
     }
 
     if (provider) {

@@ -1,7 +1,7 @@
 export const DEFAULT_API_CONFIG = {
-  apiKey: 'sk-MvhgfLb4PtcOsb1TrL5xUig1HCuOeHsM6s5s6ICRDCTq2jHm',
-  endpoint: 'https://api.chatanywhere.tech/v1',
-  model: 'gpt-3.5-turbo',
+  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY || '', //
+  endpoint: process.env.NEXT_PUBLIC_OPENAI_ENDPOINT || 'https://api.chatanywhere.tech/v1',
+  model: process.env.NEXT_PUBLIC_OPENAI_MODEL || 'gpt-4-turbo-preview',
 }
 
 export const LLM_CONFIG = {
