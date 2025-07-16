@@ -1,103 +1,166 @@
-import Image from "next/image";
+'use client'
+
+import { useState, useEffect } from 'react'
+import { PromptletInput } from '@/components/prompts/PromptletInput'
+import { Editor } from '@/components/editor/Editor'
+import { APIKeyManagerComponent } from '@/components/settings/APIKeyManager'
+import { OptimizePromptDialog } from '@/components/prompts/OptimizePromptDialog'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { useLangChain } from '@/hooks/useLangChain'
+import { Settings, AlertCircle, Sparkles } from 'lucide-react'
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [document, setDocument] = useState('')
+  const [streamingDocument, setStreamingDocument] = useState('')
+  const [originalDocument, setOriginalDocument] = useState('')
+  const [currentPromptlet, setCurrentPromptlet] = useState('')
+  const [documentModified, setDocumentModified] = useState(false)
+  const [acceptedPatchPrompts, setAcceptedPatchPrompts] = useState<string[]>([])
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  
+  const { 
+    generateDocument, 
+    isLoading, 
+    error, 
+    clearError 
+  } = useLangChain()
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  // Track document modifications
+  useEffect(() => {
+    if (originalDocument && document && document !== originalDocument) {
+      setDocumentModified(true)
+    } else {
+      setDocumentModified(false)
+    }
+  }, [document, originalDocument])
+
+  const handlePromptletSubmit = async (promptlet: string) => {
+    clearError()
+    setStreamingDocument('')
+    setCurrentPromptlet(promptlet)
+    setDocumentModified(false)
+    setAcceptedPatchPrompts([]) // Reset patch prompts for new document
+    
+    const result = await generateDocument(promptlet, (token) => {
+      setStreamingDocument(prev => prev + token)
+    })
+    
+    if (result) {
+      setDocument(result)
+      setOriginalDocument(result)
+      setStreamingDocument('')
+    }
+  }
+
+  const handleDocumentChange = (newDocument: string) => {
+    setDocument(newDocument)
+  }
+
+  const handleOptimizedPrompt = (optimizedPrompt: string) => {
+    // Use the optimized prompt to generate a new document
+    handlePromptletSubmit(optimizedPrompt)
+  }
+
+  const handlePatchAccepted = (patchPrompt: string) => {
+    // Add the patch prompt to our collection when a patch is accepted
+    setAcceptedPatchPrompts(prev => [...prev, patchPrompt])
+  }
+
+  return (
+    <div className="h-screen bg-background flex flex-col">
+      <header className="border-b bg-card flex-shrink-0">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">Prompt Patch</h1>
+              <p className="text-muted-foreground text-sm">
+                AI-powered writing tool with localized editing
+              </p>
+            </div>
+            <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Settings
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Settings</DialogTitle>
+                </DialogHeader>
+                <APIKeyManagerComponent />
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
+      </header>
+      
+      <main className="flex-1 container mx-auto px-4 py-8 overflow-hidden flex flex-col">
+        {error && (
+          <Alert variant="destructive" className="mb-6 flex-shrink-0">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {error.message}
+              {(error.code === 'API_KEY_MISSING' || error.code === 'QUOTA_EXCEEDED') && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSettingsOpen(true)}
+                  className="ml-2"
+                >
+                  {error.code === 'QUOTA_EXCEEDED' ? 'Add Your API Key' : 'Add API Key'}
+                </Button>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        <div className="flex-1 overflow-hidden flex flex-col lg:flex-row gap-8">
+          <div className="lg:w-80 flex-shrink-0">
+            <div className="sticky top-0">
+              <PromptletInput 
+                onSubmit={handlePromptletSubmit}
+                isLoading={isLoading}
+              />
+            </div>
+          </div>
+          
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Optimize Prompt Button */}
+            {currentPromptlet && !isLoading && (acceptedPatchPrompts.length > 0 || documentModified) && (
+              <div className="mb-4 flex justify-end">
+                <OptimizePromptDialog
+                  originalPrompt={currentPromptlet}
+                  patchPrompts={acceptedPatchPrompts}
+                  onOptimizedPrompt={handleOptimizedPrompt}
+                >
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-gradient-to-r from-primary/10 to-purple-500/10 border-primary/20 hover:from-primary/20 hover:to-purple-500/20"
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Optimize Prompt
+                    {acceptedPatchPrompts.length > 0 && (
+                      <Badge variant="secondary" className="ml-2 text-xs">
+                        {acceptedPatchPrompts.length}
+                      </Badge>
+                    )}
+                  </Button>
+                </OptimizePromptDialog>
+              </div>
+            )}
+            
+            <Editor 
+              document={streamingDocument || document}
+              onDocumentChange={handleDocumentChange}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          </div>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
-  );
+  )
 }
